@@ -1,0 +1,66 @@
+# TODO Modify <PROJECT_NAME>
+name: <PROJECT_NAME> - Staging environment deployment
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  ci-cd:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node: [18]
+
+    env:
+      NODE_ENV: development
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install && npm install -g @nestjs/cli
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test --passWithNoTests
+
+      # TODO Uncomment if you are planning to use Sentry
+      # - name: Setup Sentry 
+      #   run: echo "SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}" >> $GITHUB_ENV
+
+      - name: Build the application
+        run: npm run build
+
+      - name: Generate deployment package
+        run: zip -r deploy.zip . -x '*.git*' -x "node_modules/*"
+
+      - name: Get time
+        id: time
+        uses: nanzm/get-time-action@v2.0
+        with:
+          timeZone: UTC
+          format: 'YYYY-MM-DD-HH-mm-ss'
+
+      - name: Deploy to AWS Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v21
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: TODO-ADD-AWS-APP-NAME # TODO Add application name from AWS
+          environment_name: TODO-ADD-AWS-APP-ENVIRONMENT-NAME # TODO Add Beanstalk test environment name
+          version_label: 'ProjectAbbrv-test-${{ steps.time.outputs.time }}' # TODO Change ProjectAbbrv
+          region: us-east-2 # TODO Change if needed
+          deployment_package: deploy.zip
